@@ -59,16 +59,16 @@ function DesktopSidebar({
           <MascotCanvas report={report} size="orb" />
         </motion.div>
 
-        {/* Repo info */}
-        <div className="mt-5 text-center w-full">
-          
-            href={data.repo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-sm text-pulse-pure hover:text-white transition-colors truncate block"
-          >
-            {data.repo.name}
-          </a>
+{/* Repo info */}
+<div className="mt-5 text-center w-full">
+  <a
+    href={data.repo.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="font-mono text-sm text-pulse-pure hover:text-white transition-colors truncate block"
+  >
+    {data.repo.name}
+  </a>
           <p className="text-xs text-pulse-muted mt-1 line-clamp-2 leading-relaxed px-2">
             {data.repo.description}
           </p>
