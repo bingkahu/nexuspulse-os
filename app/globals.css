@@ -1,0 +1,237 @@
+/* FILE: app/globals.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS CUSTOM PROPERTIES ─────────────────────────────────────────────────── */
+:root {
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Dynamic glow color — overridden by state machine */
+  --glow-color: #6c63ff;
+  --glow-secondary: #00d4ff;
+  --mascot-ring-color: conic-gradient(from 0deg, #6c63ff, #00d4ff, #6c63ff);
+
+  /* Scroll behavior */
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── BASE LAYER ────────────────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    /* Use dynamic viewport height — prevents address bar resize jumps on mobile */
+    height: -webkit-fill-available;
+  }
+
+  body {
+    @apply bg-pulse-void text-pulse-pure antialiased;
+    font-family: var(--font-body);
+    min-height: 100dvh;
+    /* Prevent content from hiding under iOS home indicator */
+    padding-bottom: env(safe-area-inset-bottom);
+    /* Prevent horizontal scroll jank on mobile */
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar — desktop only */
+  @media (min-width: 768px) {
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0d0f1e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e2240;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6c63ff66;
+    }
+  }
+
+  /* Remove number input spinners */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
+}
+
+/* ── COMPONENT LAYER — CYBER-ORGANIC GLASSMORPHISM ─────────────────────────── */
+@layer components {
+  /* Primary glass card */
+  .glass-card {
+    @apply relative rounded-2xl border border-pulse-border overflow-hidden;
+    background: rgba(13, 15, 30, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .glass-card::before {
+    content: "";
+    @apply absolute inset-0 rounded-2xl pointer-events-none;
+    background: linear-gradient(
+      135deg,
+      rgba(108, 99, 255, 0.04) 0%,
+      transparent 50%,
+      rgba(0, 212, 255, 0.02) 100%
+    );
+  }
+
+  /* Elevated glass (for hover states) */
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300;
+  }
+
+  .glass-card-hover:hover {
+    border-color: rgba(108, 99, 255, 0.4);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(108, 99, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+  }
+
+  /* Nav glass — more opaque for legibility */
+  .glass-nav {
+    background: rgba(3, 4, 10, 0.85);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border-top: 1px solid rgba(30, 34, 64, 0.8);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Pulse ring — the animated ring around the mascot */
+  .pulse-ring {
+    background: var(--mascot-ring-color, conic-gradient(from 0deg, #6c63ff, #00d4ff, #6c63ff));
+    border-radius: 50%;
+    animation: spin 4s linear infinite;
+  }
+
+  /* Neon text glow */
+  .text-glow {
+    text-shadow:
+      0 0 20px var(--glow-color),
+      0 0 40px var(--glow-color);
+  }
+
+  /* Shimmer skeleton loader */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(30, 34, 64, 0.4) 25%,
+      rgba(108, 99, 255, 0.1) 50%,
+      rgba(30, 34, 64, 0.4) 75%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer rounded-lg;
+  }
+
+  /* Touch-active state — applied to all interactive elements */
+  .touch-active {
+    @apply transition-transform duration-75 active:scale-95 cursor-pointer;
+  }
+
+  /* Data label chip */
+  .metric-chip {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+    background: rgba(108, 99, 255, 0.12);
+    border: 1px solid rgba(108, 99, 255, 0.25);
+    color: rgba(232, 234, 255, 0.8);
+  }
+
+  /* Scan line overlay */
+  .scan-overlay {
+    @apply pointer-events-none absolute inset-0 overflow-hidden rounded-2xl;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(108, 99, 255, 0.015) 2px,
+      rgba(108, 99, 255, 0.015) 4px
+    );
+  }
+
+  /* Section header with gradient accent */
+  .section-header {
+    @apply flex items-center gap-3 mb-4;
+  }
+
+  .section-header::after {
+    content: "";
+    @apply flex-1 h-px;
+    background: linear-gradient(to right, rgba(108, 99, 255, 0.4), transparent);
+  }
+}
+
+/* ── UTILITY LAYER ──────────────────────────────────────────────────────────── */
+@layer utilities {
+  /* Prevent text selection on interactive UI elements */
+  .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* GPU-accelerated transform */
+  .gpu {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* Full dynamic viewport */
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  /* Gradient text utility */
+  .gradient-text-violet {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #6c63ff, #00d4ff);
+  }
+
+  .gradient-text-green {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #00ff9d, #00d4ff);
+  }
+
+  .gradient-text-fire {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #ff6b35, #ff4069, #ffb830);
+  }
+
+  /* Inset glow border */
+  .border-glow-violet {
+    border-color: rgba(108, 99, 255, 0.5);
+    box-shadow: 0 0 0 1px rgba(108, 99, 255, 0.2), inset 0 0 20px rgba(108, 99, 255, 0.05);
+  }
+
+  .border-glow-green {
+    border-color: rgba(0, 255, 157, 0.5);
+    box-shadow: 0 0 0 1px rgba(0, 255, 157, 0.2), inset 0 0 20px rgba(0, 255, 157, 0.05);
+  }
+
+  /* Safe bottom padding for iOS */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
