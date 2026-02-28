@@ -104,15 +104,19 @@ export async function fetchDashboardData(
 
   try {
     const { owner, repo } = target;
-    const since = new Date(
-      Date.now() - 30 * 24 * 60 * 60 * 1000
-    ).toISOString();
+    // Calculate the date 30 days ago
+    const sinceDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const since = sinceDate.toISOString();
+    
+    // Format date for the Search API (YYYY-MM-DD)
+    const searchDate = since.split('T')[0];
 
-    const [repoData, commitsData, prsData, issuesData, contributorsData] =
+    const [repoData, commitSearch, prsData, issuesData, contributorsData] =
       await Promise.all([
         ghFetch<GHRepo>(`/repos/${owner}/${repo}`, token),
-        ghFetch<GHCommit[]>(
-          `/repos/${owner}/${repo}/commits?since=${since}&per_page=30`,
+        // FIX: Using Search API to get the TRUE total count of commits in 30 days
+        ghFetch<{ total_count: number; items: GHCommit[] }>(
+          `/search/commits?q=repo:${owner}/${repo}+author-date:>=${searchDate}&per_page=10`,
           token
         ),
         ghFetch<GHPR[]>(
@@ -123,13 +127,14 @@ export async function fetchDashboardData(
           `/repos/${owner}/${repo}/issues?state=open&per_page=50`,
           token
         ),
-        ghFetch<{ total_count: number }[]>(
+        ghFetch<any[]>(
           `/repos/${owner}/${repo}/contributors?per_page=1&anon=false`,
           token
         ),
       ]);
 
-    const recentCommits: CommitActivity[] = commitsData.slice(0, 10).map((c) => ({
+    // MAP RECENT COMMITS: Using commitSearch.items now
+    const recentCommits: CommitActivity[] = commitSearch.items.map((c) => ({
       sha: c.sha.slice(0, 7),
       message: c.commit.message.split("\n")[0].slice(0, 80),
       author: c.commit.author?.name ?? c.author?.login ?? "unknown",
@@ -172,8 +177,9 @@ export async function fetchDashboardData(
           Date.now() - new Date(i.updated_at).getTime() > STALE_THRESHOLD_MS
       ).length;
 
+    // METRICS: This is where the magic happens
     const metrics: RawMetrics = {
-      commits: commitsData.length,
+      commits: commitSearch.total_count, // THE TRUE COUNT (e.g., 142 instead of 30)
       prsMerged: mergedPRs.length,
       staleIssues,
       totalIssues: issuesData.filter((i) => !i.pull_request).length,
@@ -181,8 +187,29 @@ export async function fetchDashboardData(
       totalForks: repoData.forks_count,
       contributors: contributorsData.length,
       lastCommitDate:
-        commitsData[0]?.commit.author?.date ?? new Date().toISOString(),
+        commitSearch.items[0]?.commit.author?.date ?? new Date().toISOString(),
     };
+
+    return {
+      repo: {
+        name: repoData.full_name,
+        description: repoData.description ?? "No description provided.",
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        url: repoData.html_url,
+      },
+      metrics,
+      recentCommits,
+      recentPRs,
+      recentIssues,
+      fetchedAt: new Date().toISOString(),
+      isMockData: false,
+    };
+  } catch (error) {
+    console.error("[NexusPulse] GitHub fetch failed, falling back to mock:", error);
+    return buildMockDashboard(target);
+  }
+}
 
     return {
       repo: {
