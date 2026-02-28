@@ -14,12 +14,11 @@ import type { FullDashboardData } from "@/lib/github-client";
 interface DashboardClientProps {
   data: FullDashboardData;
   report: VitalityReport;
-  currentOwner: string;   // ← NEW: passed from the dynamic route
-  currentRepo: string;    // ← NEW: passed from the dynamic route
+  currentOwner: string;
+  currentRepo: string;
 }
 
 // ── REPO SEARCH BAR ───────────────────────────────────────────────────────────
-// Shared between DesktopSidebar and MobileHeader
 function RepoSearchBar({
   currentOwner,
   currentRepo,
@@ -30,19 +29,17 @@ function RepoSearchBar({
   currentOwner: string;
   currentRepo: string;
   glowColor: string;
-  onNavigate: () => void; // callback so parent can close any open panel
+  onNavigate: () => void;
   compact?: boolean;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Input is pre-filled with the current repo so users can see what they're on
   const [inputValue, setInputValue] = useState(`${currentOwner}/${currentRepo}`);
   const [isFocused, setIsFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
 
-  // Keep the input in sync if the parent page changes (browser back/forward)
   useEffect(() => {
     setInputValue(`${currentOwner}/${currentRepo}`);
   }, [currentOwner, currentRepo]);
@@ -61,7 +58,7 @@ function RepoSearchBar({
       }
 
       const [owner, ...repoParts] = parts;
-      const repo = repoParts.join("/"); // handles scoped names like org/sub/repo
+      const repo = repoParts.join("/");
 
       if (!owner || !repo) {
         setError("Both owner and repo are required.");
@@ -77,11 +74,7 @@ function RepoSearchBar({
   );
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="w-full"
-      aria-label="Search repository"
-    >
+    <form onSubmit={handleSubmit} className="w-full" aria-label="Search repository">
       <div
         className={`
           relative flex items-center rounded-xl overflow-hidden
@@ -96,7 +89,6 @@ function RepoSearchBar({
             : "none",
         }}
       >
-        {/* Search icon */}
         <span
           className={`flex-shrink-0 pl-3 text-sm transition-colors duration-200 ${
             isFocused ? "" : "opacity-40"
@@ -106,8 +98,6 @@ function RepoSearchBar({
         >
           🔍
         </span>
-
-        {/* Input */}
         <input
           ref={inputRef}
           type="text"
@@ -134,8 +124,6 @@ function RepoSearchBar({
           autoCapitalize="none"
           spellCheck={false}
         />
-
-        {/* Submit button */}
         <motion.button
           type="submit"
           disabled={isNavigating}
@@ -163,8 +151,6 @@ function RepoSearchBar({
           )}
         </motion.button>
       </div>
-
-      {/* Inline error */}
       <AnimatePresence>
         {error && (
           <motion.p
@@ -210,7 +196,6 @@ function DesktopSidebar({
 
   return (
     <aside className="hidden md:flex flex-col w-64 xl:w-72 min-h-dvh border-r border-pulse-border bg-pulse-nebula/50 backdrop-blur-xl flex-shrink-0">
-      {/* Brand + search */}
       <div className="p-5 border-b border-pulse-border space-y-3">
         <div>
           <h1
@@ -221,17 +206,14 @@ function DesktopSidebar({
           </h1>
           <p className="text-xs text-pulse-muted mt-0.5">Edge Community Dashboard</p>
         </div>
-
-        {/* ── REPO SEARCH — desktop ── */}
         <RepoSearchBar
           currentOwner={currentOwner}
           currentRepo={currentRepo}
           glowColor={glowColor}
-          onNavigate={() => {}} // no panel to close on desktop
+          onNavigate={() => {}}
         />
       </div>
 
-      {/* Mascot floating orb */}
       <div className="flex flex-col items-center py-6 px-4">
         <motion.div
           animate={{ y: [0, -10, 0] }}
@@ -240,9 +222,8 @@ function DesktopSidebar({
           <MascotCanvas report={report} size="orb" />
         </motion.div>
 
-        {/* Repo info */}
         <div className="mt-5 text-center w-full">
-          
+          <a
             href={data.repo.url}
             target="_blank"
             rel="noopener noreferrer"
@@ -265,7 +246,6 @@ function DesktopSidebar({
         </div>
       </div>
 
-      {/* Nav items */}
       <nav className="flex-1 px-3 py-2 space-y-1">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
@@ -297,7 +277,6 @@ function DesktopSidebar({
         })}
       </nav>
 
-      {/* Footer status */}
       <div className="p-4 border-t border-pulse-border">
         {data.isMockData && (
           <div className="mb-2 text-xs p-2 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-300">
@@ -328,7 +307,6 @@ function MobileHeader({
 
   return (
     <header className="md:hidden border-b border-pulse-border bg-pulse-nebula/60 backdrop-blur-xl">
-      {/* Top bar */}
       <div className="flex items-center justify-between px-4 pt-safe pt-3 pb-3 gap-3">
         <div className="min-w-0">
           <h1
@@ -342,7 +320,6 @@ function MobileHeader({
           </p>
         </div>
 
-        {/* Search toggle button */}
         <motion.button
           onClick={() => setSearchOpen((v) => !v)}
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl touch-active"
@@ -374,7 +351,6 @@ function MobileHeader({
           </AnimatePresence>
         </motion.button>
 
-        {/* Live status pill */}
         <div
           className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded-full text-xs font-medium"
           style={{
@@ -393,7 +369,6 @@ function MobileHeader({
         </div>
       </div>
 
-      {/* ── COLLAPSIBLE SEARCH — mobile ── */}
       <AnimatePresence>
         {searchOpen && (
           <motion.div
@@ -410,34 +385,11 @@ function MobileHeader({
                 glowColor={report.stateConfig.glowColor}
                 onNavigate={() => setSearchOpen(false)}
               />
-              <p className="text-xs text-pulse-muted mt-2 px-1">
-                Try{" "}
-                <button
-                  className="font-mono underline underline-offset-2 hover:text-pulse-ghost transition-colors"
-                  onClick={() => {
-                    window.location.href = "/facebook/react";
-                  }}
-                  style={{ color: report.stateConfig.glowColor }}
-                >
-                  facebook/react
-                </button>{" "}
-                or{" "}
-                <button
-                  className="font-mono underline underline-offset-2 hover:text-pulse-ghost transition-colors"
-                  onClick={() => {
-                    window.location.href = "/microsoft/vscode";
-                  }}
-                  style={{ color: report.stateConfig.glowColor }}
-                >
-                  microsoft/vscode
-                </button>
-              </p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mascot hero */}
       <div className="flex flex-col items-center py-5 px-4">
         <MascotCanvas report={report} size="hero" />
         <motion.p
@@ -663,7 +615,6 @@ export default function DashboardClient({
   const { stateConfig } = report;
   const glowColor = stateConfig.glowColor;
 
-  // Inject CSS custom properties for dynamic glow theming
   useEffect(() => {
     document.documentElement.style.setProperty("--glow-color", glowColor);
     document.documentElement.style.setProperty(
@@ -705,7 +656,6 @@ export default function DashboardClient({
 
   return (
     <div className="flex min-h-dvh bg-pulse-void">
-      {/* ── DESKTOP SIDEBAR ── */}
       <DesktopSidebar
         data={data}
         report={report}
@@ -715,9 +665,7 @@ export default function DashboardClient({
         currentRepo={currentRepo}
       />
 
-      {/* ── MAIN CONTENT ── */}
       <main className="flex-1 flex flex-col min-w-0 pb-[72px] md:pb-0">
-        {/* Mobile header (includes mascot hero) */}
         <MobileHeader
           data={data}
           report={report}
@@ -725,7 +673,6 @@ export default function DashboardClient({
           currentRepo={currentRepo}
         />
 
-        {/* Desktop page header bar */}
         <div className="hidden md:flex items-center justify-between px-6 py-4 border-b border-pulse-border">
           <div>
             <h2
@@ -738,7 +685,6 @@ export default function DashboardClient({
               Last synced {relativeTime(data.fetchedAt)}
             </p>
           </div>
-          {/* State pill */}
           <motion.div
             className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
             style={{
@@ -765,7 +711,6 @@ export default function DashboardClient({
           </motion.div>
         </div>
 
-        {/* Tab content with page transition */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           <AnimatePresence mode="wait">
             <motion.div
@@ -781,7 +726,6 @@ export default function DashboardClient({
         </div>
       </main>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
       <BottomNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
