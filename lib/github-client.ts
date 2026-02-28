@@ -6,11 +6,13 @@
  * Uses fetch() directly (no Node.js http module) so it runs
  * on Cloudflare's V8-based Edge without polyfills.
  *
- * Falls back to mock data when GITHUB_TOKEN is absent (local dev).
+ * CHANGE: owner and repo are now explicit string parameters
+ * on every public function — no module-level constants.
  */
 
 import { RawMetrics, generateMockMetrics } from "./vitality-engine";
 
+// ── PUBLIC TYPES ──────────────────────────────────────────────────────────────
 export interface GitHubRepo {
   owner: string;
   repo: string;
@@ -39,13 +41,19 @@ export interface Issue {
   state: "open" | "closed";
   createdAt: string;
   updatedAt: string;
-  isStale: boolean; // no activity for > 30 days
+  isStale: boolean;
   url: string;
   labels: string[];
 }
 
 export interface FullDashboardData {
-  repo: { name: string; description: string; stars: number; forks: number; url: string };
+  repo: {
+    name: string;
+    description: string;
+    stars: number;
+    forks: number;
+    url: string;
+  };
   metrics: RawMetrics;
   recentCommits: CommitActivity[];
   recentPRs: PullRequest[];
@@ -54,10 +62,10 @@ export interface FullDashboardData {
   isMockData: boolean;
 }
 
+// ── INTERNALS ─────────────────────────────────────────────────────────────────
 const GITHUB_API = "https://api.github.com";
 const STALE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// ── EDGE-SAFE FETCH WRAPPER ───────────────────────────────────────────────────
 async function ghFetch<T>(
   path: string,
   token: string,
@@ -72,43 +80,55 @@ async function ghFetch<T>(
       "User-Agent": "NexusPulse-OS/1.0",
       ...options.headers,
     },
-    // Edge cache: revalidate every 5 minutes
     next: { revalidate: 300 },
   });
 
   if (!res.ok) {
-    throw new Error(`GitHub API error: ${res.status} ${res.statusText} for ${path}`);
+    throw new Error(
+      `GitHub API error: ${res.status} ${res.statusText} — ${path}`
+    );
   }
 
   return res.json() as Promise<T>;
 }
 
-// ── MAIN DATA FETCHER ─────────────────────────────────────────────────────────
+// ── MAIN DATA FETCHER — now accepts GitHubRepo argument ───────────────────────
 export async function fetchDashboardData(
   target: GitHubRepo
 ): Promise<FullDashboardData> {
   const token = process.env.GITHUB_TOKEN;
 
-  // Graceful fallback to mock data when no token is configured
   if (!token || token === "mock") {
     return buildMockDashboard(target);
   }
 
   try {
     const { owner, repo } = target;
-    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(); // last 30 days
+    const since = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000
+    ).toISOString();
 
-    // Parallel fetch — all requests fire simultaneously
     const [repoData, commitsData, prsData, issuesData, contributorsData] =
       await Promise.all([
         ghFetch<GHRepo>(`/repos/${owner}/${repo}`, token),
-        ghFetch<GHCommit[]>(`/repos/${owner}/${repo}/commits?since=${since}&per_page=30`, token),
-        ghFetch<GHPR[]>(`/repos/${owner}/${repo}/pulls?state=closed&sort=updated&per_page=20`, token),
-        ghFetch<GHIssue[]>(`/repos/${owner}/${repo}/issues?state=open&per_page=50`, token),
-        ghFetch<{ total_count: number }[]>(`/repos/${owner}/${repo}/contributors?per_page=1&anon=false`, token),
+        ghFetch<GHCommit[]>(
+          `/repos/${owner}/${repo}/commits?since=${since}&per_page=30`,
+          token
+        ),
+        ghFetch<GHPR[]>(
+          `/repos/${owner}/${repo}/pulls?state=closed&sort=updated&per_page=20`,
+          token
+        ),
+        ghFetch<GHIssue[]>(
+          `/repos/${owner}/${repo}/issues?state=open&per_page=50`,
+          token
+        ),
+        ghFetch<{ total_count: number }[]>(
+          `/repos/${owner}/${repo}/contributors?per_page=1&anon=false`,
+          token
+        ),
       ]);
 
-    // Process commits
     const recentCommits: CommitActivity[] = commitsData.slice(0, 10).map((c) => ({
       sha: c.sha.slice(0, 7),
       message: c.commit.message.split("\n")[0].slice(0, 80),
@@ -117,7 +137,6 @@ export async function fetchDashboardData(
       url: c.html_url,
     }));
 
-    // Process PRs — filter to only merged ones in the window
     const mergedPRs = prsData.filter((pr) => pr.merged_at !== null);
     const recentPRs: PullRequest[] = mergedPRs.slice(0, 10).map((pr) => ({
       number: pr.number,
@@ -128,9 +147,8 @@ export async function fetchDashboardData(
       url: pr.html_url,
     }));
 
-    // Process issues — compute stale status
     const recentIssues: Issue[] = issuesData
-      .filter((i) => !i.pull_request) // exclude PRs from issues list
+      .filter((i) => !i.pull_request)
       .slice(0, 15)
       .map((issue) => {
         const lastActivity = new Date(issue.updated_at).getTime();
@@ -147,10 +165,12 @@ export async function fetchDashboardData(
         };
       });
 
-    // Compile raw metrics for vitality engine
     const staleIssues = issuesData
       .filter((i) => !i.pull_request)
-      .filter((i) => Date.now() - new Date(i.updated_at).getTime() > STALE_THRESHOLD_MS).length;
+      .filter(
+        (i) =>
+          Date.now() - new Date(i.updated_at).getTime() > STALE_THRESHOLD_MS
+      ).length;
 
     const metrics: RawMetrics = {
       commits: commitsData.length,
@@ -160,7 +180,8 @@ export async function fetchDashboardData(
       totalStars: repoData.stargazers_count,
       totalForks: repoData.forks_count,
       contributors: contributorsData.length,
-      lastCommitDate: commitsData[0]?.commit.author?.date ?? new Date().toISOString(),
+      lastCommitDate:
+        commitsData[0]?.commit.author?.date ?? new Date().toISOString(),
     };
 
     return {
@@ -257,7 +278,6 @@ function buildMockDashboard(target: GitHubRepo): FullDashboardData {
 }
 
 // ── GITHUB API TYPE STUBS ─────────────────────────────────────────────────────
-// (minimal typing — enough to avoid `any` while staying lean)
 interface GHRepo {
   full_name: string;
   description: string | null;
@@ -267,10 +287,7 @@ interface GHRepo {
 }
 interface GHCommit {
   sha: string;
-  commit: {
-    message: string;
-    author: { name: string; date: string } | null;
-  };
+  commit: { message: string; author: { name: string; date: string } | null };
   author: { login: string } | null;
   html_url: string;
 }
