@@ -1,13 +1,5 @@
-// FILE: lib/github-client.ts
-
 /**
  * NexusPulse GitHub Client — Edge Runtime Compatible
- * ─────────────────────────────────────────────────────────
- * Uses fetch() directly (no Node.js http module) so it runs
- * on Cloudflare's V8-based Edge without polyfills.
- *
- * CHANGE: owner and repo are now explicit string parameters
- * on every public function — no module-level constants.
  */
 
 import { RawMetrics, generateMockMetrics } from "./vitality-engine";
@@ -92,7 +84,7 @@ async function ghFetch<T>(
   return res.json() as Promise<T>;
 }
 
-// ── MAIN DATA FETCHER — now accepts GitHubRepo argument ───────────────────────
+// ── MAIN DATA FETCHER ────────────────────────────────────────────────────────
 export async function fetchDashboardData(
   target: GitHubRepo
 ): Promise<FullDashboardData> {
@@ -104,17 +96,13 @@ export async function fetchDashboardData(
 
   try {
     const { owner, repo } = target;
-    // Calculate the date 30 days ago
     const sinceDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const since = sinceDate.toISOString();
-    
-    // Format date for the Search API (YYYY-MM-DD)
     const searchDate = since.split('T')[0];
 
     const [repoData, commitSearch, prsData, issuesData, contributorsData] =
       await Promise.all([
         ghFetch<GHRepo>(`/repos/${owner}/${repo}`, token),
-        // FIX: Using Search API to get the TRUE total count of commits in 30 days
         ghFetch<{ total_count: number; items: GHCommit[] }>(
           `/search/commits?q=repo:${owner}/${repo}+author-date:>=${searchDate}&per_page=10`,
           token
@@ -133,7 +121,6 @@ export async function fetchDashboardData(
         ),
       ]);
 
-    // MAP RECENT COMMITS: Using commitSearch.items now
     const recentCommits: CommitActivity[] = commitSearch.items.map((c) => ({
       sha: c.sha.slice(0, 7),
       message: c.commit.message.split("\n")[0].slice(0, 80),
@@ -173,43 +160,19 @@ export async function fetchDashboardData(
     const staleIssues = issuesData
       .filter((i) => !i.pull_request)
       .filter(
-        (i) =>
-          Date.now() - new Date(i.updated_at).getTime() > STALE_THRESHOLD_MS
+        (i) => Date.now() - new Date(i.updated_at).getTime() > STALE_THRESHOLD_MS
       ).length;
 
-    // METRICS: This is where the magic happens
     const metrics: RawMetrics = {
-      commits: commitSearch.total_count, // THE TRUE COUNT (e.g., 142 instead of 30)
+      commits: commitSearch.total_count, 
       prsMerged: mergedPRs.length,
       staleIssues,
       totalIssues: issuesData.filter((i) => !i.pull_request).length,
       totalStars: repoData.stargazers_count,
       totalForks: repoData.forks_count,
       contributors: contributorsData.length,
-      lastCommitDate:
-        commitSearch.items[0]?.commit.author?.date ?? new Date().toISOString(),
+      lastCommitDate: commitSearch.items[0]?.commit.author?.date ?? new Date().toISOString(),
     };
-
-    return {
-      repo: {
-        name: repoData.full_name,
-        description: repoData.description ?? "No description provided.",
-        stars: repoData.stargazers_count,
-        forks: repoData.forks_count,
-        url: repoData.html_url,
-      },
-      metrics,
-      recentCommits,
-      recentPRs,
-      recentIssues,
-      fetchedAt: new Date().toISOString(),
-      isMockData: false,
-    };
-  } catch (error) {
-    console.error("[NexusPulse] GitHub fetch failed, falling back to mock:", error);
-    return buildMockDashboard(target);
-  }
-}
 
     return {
       repo: {
